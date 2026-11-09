@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Print station · จุดพิมพ์สติกเกอร์</title>
+<style>
+  :root { --bg:#f6f5f1; --card:#fff; --ink:#1d1d1b; --muted:#6b6a65; --accent:#2f6b3a; --bad:#a3332b; --warn:#9a6a00; --line:#e3e1da; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 24px; margin: 4px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  button { width:100%; font-size: 20px; font-weight: 600; padding: 18px; border-radius: 12px; border: none; background: var(--accent); color:#fff; cursor:pointer; }
+  button.secondary { background:#fff; color: var(--ink); border:1px solid var(--line); font-size: 15px; padding: 12px; }
+  button:disabled { opacity: .4; cursor: default; }
+  .big { font-size: 26px; font-weight: 700; padding: 18px; border-radius: 12px; text-align:center; }
+  .ok { background:#e5f0e6; color: var(--accent); }
+  .bad { background:#f7e9e7; color: var(--bad); }
+  .warn { background:#fbf1dc; color: var(--warn); }
+  .muted { color: var(--muted); font-size: 14px; }
+  .job { display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:16px; }
+  .job:last-child { border-bottom:0; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background:#1d1d1b; color:#d9f2d0; padding: 12px; border-radius: 10px; max-height: 260px; overflow:auto; margin: 10px 0 0; }
+  details summary { cursor:pointer; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Print station</h1>
+  <p class="sub">จุดพิมพ์สติกเกอร์ · Xprinter XP-420B · 70 × 50 mm</p>
+
+  <div class="card" id="setupCard" hidden>
+    <div class="big warn">Not set up yet · ยังไม่ได้ตั้งค่า</div>
+    <p>On a phone, open the tracking app with the <b>owner PIN</b> → tap <b>Print station setup</b> at the bottom → scan that code with this tablet.</p>
+    <p class="muted">เปิดแอปด้วย PIN เจ้าของ → กด Print station setup ด้านล่าง → สแกนโค้ดด้วยแท็บเล็ตนี้</p>
+  </div>
+
+  <div class="card" id="unsupported" hidden>
+    <div class="big bad">Open this page in Chrome · เปิดหน้านี้ใน Chrome</div>
+  </div>
+
+  <div class="card" id="mainCard" hidden>
+    <div class="big bad" id="state">Printer not connected · ยังไม่เชื่อมต่อเครื่องพิมพ์</div>
+    <div style="height:12px"></div>
+    <button id="connectBtn">Connect printer · เชื่อมต่อเครื่องพิมพ์</button>
+    <p class="muted">Printer on, lid closed. Pick the printer from the list. You only tap this after the tablet restarts or the page reloads.<br>
+    เปิดเครื่องพิมพ์ ปิดฝา แล้วเลือกเครื่องพิมพ์จากรายการ กดแค่ตอนเปิดหน้านี้ใหม่</p>
+  </div>
+
+  <div class="card" id="queueCard" hidden>
+    <b>Waiting to print · รอพิมพ์</b> <span class="muted" id="checked"></span>
+    <div id="queue"><p class="muted">Nothing waiting · ไม่มีงานรอ</p></div>
+  </div>
+
+  <div class="card" id="doneCard" hidden>
+    <b>Printed just now · พิมพ์แล้ว</b>
+    <div id="done"><p class="muted">—</p></div>
+  </div>
+
+  <div class="card" id="toolsCard" hidden>
+    <button class="secondary" id="testBtn" disabled>Print one test sticker · พิมพ์ทดสอบ 1 แผ่น</button>
+    <div style="height:10px"></div>
+    <details>
+      <summary>Details for Claude (if something goes wrong)</summary>
+      <p class="muted">Screenshot this box and send it to Claude.</p>
+      <pre id="log"></pre>
+      <div style="height:10px"></div>
+      <button class="secondary" id="forgetBtn">Forget setup on this tablet</button>
+    </details>
+  </div>
+</main>
+
+<script>
+// ---------- Settings (kept on this tablet only, never in the page code) ----------
+const KNOWN_SERVICES = [
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb', '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '0000fee7-0000-1000-8000-00805f9b34fb', '0000ae30-0000-1000-8000-00805f9b34fb',
+  '0000ff12-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
+];
+const POLL_MS = 5000;
+const LABEL = { w: 70, h: 50, gap: 2 };   // mm. 203 dpi = 8 dots per mm
+
+const $ = id => document.getElementById(id);
+function log(msg) { const el = $('log'); el.textContent += new Date().toLocaleTimeString() + ' ' + msg + '\n'; el.scrollTop = el.scrollHeight; console.log(msg); }
+function setState(text, cls) { $('state').textContent = text; $('state').className = 'big ' + cls; }
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+
+// The setup link looks like station.html#u=<app link>&k=<key>. Save it, then hide it from the address bar.
+(function readSetupLink() {
+  if (!location.hash) return;
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.get('u') && p.get('k')) { store('station_url', p.get('u')); store('station_key', p.get('k')); }
+  history.replaceState(null, '', location.pathname);
+})();
+const APP_URL = store('station_url'), KEY = store('station_key');
+
+// ---------- Bluetooth ----------
+let device = null, writeChar = null, busy = false;
+const printedHere = {};   // jobs this tablet already printed (so a failed "done" never prints twice)
+
+async function connectTo(dev) {
+  const server = await dev.gatt.connect();
+  const services = await server.getPrimaryServices();
+  let wnr = null, w = null;
+  for (const s of services) {
+    let chars = [];
+    try { chars = await s.getCharacteristics(); } catch (e) { continue; }
+    for (const c of chars) {
+      if (c.properties.writeWithoutResponse && !wnr) wnr = c;
+      if (c.properties.write && !w) w = c;
+    }
+  }
+  writeChar = wnr || w;
+  if (!writeChar) throw new Error('No writable channel found. Is this the printer?');
+  log('Connected: ' + (dev.name || 'printer') + ' via ' + writeChar.uuid);
+  setState('Ready ✓ · พร้อมพิมพ์', 'ok');
+  $('testBtn').disabled = false;
+}
+
+$('connectBtn').onclick = async () => {
+  try {
+    device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: KNOWN_SERVICES });
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+    setState('Connecting… · กำลังเชื่อมต่อ', 'warn');
+    await connectTo(device);
+  } catch (e) {
+    log('Connect error: ' + e.name + ': ' + e.message);
+    setState(e.name === 'NotFoundError' ? 'No printer chosen · ยังไม่ได้เลือกเครื่องพิมพ์' : 'Could not connect · เชื่อมต่อไม่ได้', 'bad');
+  }
+};
+
+// If the printer drops (turned off, out of range), keep trying to reconnect on its own.
+async function onDisconnect() {
+  writeChar = null;
+  $('testBtn').disabled = true;
+  setState('Printer disconnected – reconnecting… · ขาดการเชื่อมต่อ กำลังเชื่อมใหม่', 'bad');
+  log('Disconnected');
+  for (let i = 0; i < 60 && device && !writeChar; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    try { await connectTo(device); } catch (e) { log('Reconnect try ' + (i + 1) + ' failed'); }
+  }
+  if (!writeChar) setState('Printer not connected – tap Connect · ยังไม่เชื่อมต่อ กดเชื่อมต่อ', 'bad');
+}
+
+async function send(str) {
+  const bytes = new TextEncoder().encode(str);
+  const CHUNK = 20;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    const part = bytes.slice(i, i + CHUNK);
+    if (writeChar.properties.writeWithoutResponse) {
+      await writeChar.writeValueWithoutResponse(part);
+      await new Promise(r => setTimeout(r, 15));
+    } else {
+      await writeChar.writeValue(part);
+    }
+  }
+}
+
+// ---------- Sticker layout (TSPL) ----------
+// Left: QR code (opens the tracking app for this group) with the full ID under it.
+// Right: strain code, rest of the ID, strain name, Plant 3/6, date.
+const ascii = s => String(s == null ? '' : s).replace(/"/g, "'").replace(/[^\x20-\x7E]/g, '').trim();
+function fit(s, n) { s = ascii(s); return s.length > n ? s.slice(0, n - 1) + '.' : s; }
+
+function stickerTspl(L, k) {
+  const id = ascii(L.id), code = ascii(L.code);
+  const rest = id.indexOf(code + '-') === 0 ? id.slice(code.length + 1) : id;
+  const n = Number(L.n) || 1;
+  const line4 = n > 1 ? (L.unit || 'Plant') + ' ' + k + '/' + n : fit(L.extra, 15);
+  const X = 372; // right column starts here (dots)
+  const codeFont = code.length <= 7 ? '"4"' : code.length <= 11 ? '"3"' : '"2"';
+  return `SIZE ${LABEL.w} mm,${LABEL.h} mm\r\nGAP ${LABEL.gap} mm,0 mm\r\nDIRECTION 1\r\nREFERENCE 0,0\r\nDENSITY 10\r\nSPEED 4\r\nCLS\r\n` +
+    `QRCODE 16,16,M,6,A,0,"${ascii(L.qr)}"\r\n` +
+    `TEXT 16,372,"1",0,1,1,"${fit(id, 42)}"\r\n` +
+    `TEXT ${X},24,${codeFont},0,1,1,"${fit(code, 15)}"\r\n` +
+    `TEXT ${X},78,"3",0,1,1,"${fit(rest, 11)}"\r\n` +
+    `TEXT ${X},124,"2",0,1,1,"${fit(L.name, 15)}"\r\n` +
+    `TEXT ${X},170,"3",0,1,1,"${fit(line4, 11)}"\r\n` +
+    `TEXT ${X},220,"2",0,1,1,"${fit(L.date, 15)}"\r\n` +
+    `PRINT 1,1\r\n`;
+}
+
+async function printLabel(L) {
+  const n = Math.min(200, Math.max(1, Number(L.n) || 1));
+  for (let k = 1; k <= n; k++) {
+    if (!writeChar) throw new Error('Printer disconnected');
+    await send(stickerTspl(L, k));
+    await new Promise(r => setTimeout(r, 600)); // let the printer finish each sticker
+  }
+}
+
+$('testBtn').onclick = async () => {
+  if (busy) return;
+  busy = true;
+  try {
+    await printLabel({ qr: 'TEST', id: 'TEST-000000-1', code: 'TEST', name: 'TEST STICKER', unit: 'Plant', n: 1, extra: 'test', date: new Date().toISOString().slice(0, 10) });
+    log('Test sticker sent');
+  } catch (e) { log('Test failed: ' + e.message); }
+  busy = false;
+};
+
+// ---------- Queue ----------
+async function api(params) {
+  const q = new URLSearchParams(Object.assign({ api: 'print', k: KEY }, params));
+  const res = await fetch(APP_URL + '?' + q.toString(), { redirect: 'follow' });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'error');
+  return data;
+}
+
+function showQueue(jobs) {
+  $('checked').textContent = '· checked ' + new Date().toLocaleTimeString();
+  $('queue').innerHTML = jobs.length ? jobs.map(j =>
+    `<div class="job"><span><b>${esc(j.label.id)}</b><br><span class="muted">${esc(j.by || '')} · ${esc(j.time)}</span></span><b>${esc(j.label.n)} ×</b></div>`
+  ).join('') : '<p class="muted">Nothing waiting · ไม่มีงานรอ</p>';
+}
+function addDone(j) {
+  const el = $('done');
+  if (el.textContent.trim() === '—') el.innerHTML = '';
+  el.insertAdjacentHTML('afterbegin', `<div class="job"><span><b>${esc(j.label.id)}</b><br><span class="muted">${new Date().toLocaleTimeString()}</span></span><b>${esc(j.label.n)} ×</b></div>`);
+  while (el.children.length > 10) el.removeChild(el.lastChild);
+}
+
+async function poll() {
+  if (busy) return;
+  busy = true;
+  try {
+    const data = await api({ do: 'jobs' });
+    showQueue(data.jobs);
+    for (const j of data.jobs) {
+      if (!printedHere[j.job]) {
+        if (!writeChar) break;                  // wait until the printer is connected
+        setState('Printing ' + j.label.id + '… · กำลังพิมพ์', 'warn');
+        log('Printing ' + j.job + ' (' + j.label.n + ')');
+        await printLabel(j.label);
+        printedHere[j.job] = true;
+        addDone(j);
+      }
+      await api({ do: 'done', job: j.job });    // tell the Sheet it's printed
+    }
+    if (writeChar) setState('Ready ✓ · พร้อมพิมพ์', 'ok');
+  } catch (e) {
+    log('Queue error: ' + e.message);
+    if (e.message === 'BAD_KEY') { setState('Setup link is old – set up again · ลิงก์หมดอายุ ตั้งค่าใหม่', 'bad'); }
+    else if (writeChar) setState('Ready – no internet right now · ยังไม่มีอินเทอร์เน็ต', 'warn');
+  }
+  busy = false;
+}
+
+// Keep the tablet screen on so Chrome keeps running.
+async function keepAwake() {
+  try { if ('wakeLock' in navigator) { await navigator.wakeLock.request('screen'); log('Screen will stay on'); } } catch (e) { log('Wake lock: ' + e.message); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+
+$('forgetBtn').onclick = () => { store('station_url', null); store('station_key', null); location.reload(); };
+
+// ---------- Start ----------
+log('Page loaded. ' + navigator.userAgent);
+if (!APP_URL || !KEY) {
+  $('setupCard').hidden = false;
+} else if (!navigator.bluetooth) {
+  $('unsupported').hidden = false;
+} else {
+  ['mainCard', 'queueCard', 'doneCard', 'toolsCard'].forEach(id => $(id).hidden = false);
+  keepAwake();
+  poll();
+  setInterval(poll, POLL_MS);
+}
+</script>
+</body>
+</html>
