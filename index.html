@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label Printer Test · ทดสอบเครื่องพิมพ์</title>
+<style>
+  :root { --bg:#f6f5f1; --card:#fff; --ink:#1d1d1b; --muted:#6b6a65; --accent:#2f6b3a; --bad:#a3332b; --line:#e3e1da; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 22px; margin: 4px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .step { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+  button { width:100%; font-size: 18px; font-weight: 600; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color:#fff; cursor:pointer; }
+  button.secondary { background:#fff; color: var(--ink); border:1px solid var(--line); font-size: 15px; padding: 12px; }
+  button:disabled { opacity: .4; cursor: default; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input, select { width:100%; font-size: 16px; padding: 10px; border:1px solid var(--line); border-radius: 10px; background:#fff; }
+  .status { font-size: 15px; padding: 10px 12px; border-radius: 10px; background:#eef3ee; margin-top: 10px; }
+  .status.bad { background:#f7e9e7; color: var(--bad); }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background:#1d1d1b; color:#d9f2d0; padding: 12px; border-radius: 10px; max-height: 260px; overflow:auto; margin: 10px 0 0; }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  details summary { cursor:pointer; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Label printer test</h1>
+  <p class="sub">ทดสอบเครื่องพิมพ์ฉลาก · Xprinter XP-420B · Bluetooth</p>
+
+  <div class="card" id="unsupported" hidden>
+    <div class="status bad">This browser can't use Bluetooth. Open this page in <b>Chrome</b> on the Android tablet.<br>เบราว์เซอร์นี้ใช้บลูทูธไม่ได้ กรุณาเปิดใน Chrome บนแท็บเล็ต Android</div>
+  </div>
+
+  <div class="card">
+    <div class="step">Step 1 · เชื่อมต่อ</div>
+    <button id="connectBtn">Connect printer · เชื่อมต่อ</button>
+    <div class="hint">Printer on, lid closed. A list pops up — pick the printer (often "XP-420B", "Printer…", or a name with numbers).</div>
+    <div class="status" id="status">Not connected · ยังไม่เชื่อมต่อ</div>
+  </div>
+
+  <div class="card">
+    <div class="step">Step 2 · ขนาดฉลาก (label size)</div>
+    <div class="row">
+      <div><label>Width mm · กว้าง</label><input id="w" type="number" value="100" inputmode="numeric"></div>
+      <div><label>Height mm · สูง</label><input id="h" type="number" value="100" inputmode="numeric"></div>
+      <div><label>Gap mm · ช่องว่าง</label><input id="gap" type="number" value="2" inputmode="numeric"></div>
+    </div>
+    <div class="hint">Measure one label with a ruler. Common sizes: 100×100, 100×150, 75×50.</div>
+  </div>
+
+  <div class="card">
+    <div class="step">Step 3 · พิมพ์ทดสอบ</div>
+    <label>QR content · ข้อมูลใน QR</label>
+    <input id="qrText" value="FARM-TEST-001">
+    <div style="height:12px"></div>
+    <button id="printBtn" disabled>Print test QR · พิมพ์</button>
+    <div style="height:10px"></div>
+    <button id="textBtn" class="secondary" disabled>Print text only (if QR fails) · พิมพ์ข้อความ</button>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Details for Claude (if something goes wrong)</summary>
+      <div class="hint">Screenshot this box and send it to Claude.</div>
+      <pre id="log"></pre>
+    </details>
+  </div>
+</main>
+
+<script>
+// Known BLE "serial" services used by cheap thermal printers (Xprinter, Gprinter, etc.)
+const KNOWN_SERVICES = [
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC / Microchip transparent UART
+  '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '0000fee7-0000-1000-8000-00805f9b34fb',
+  '0000ae30-0000-1000-8000-00805f9b34fb',
+  '0000ff12-0000-1000-8000-00805f9b34fb',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART
+];
+
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+function log(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; console.log(msg); }
+function setStatus(msg, bad) { $('status').textContent = msg; $('status').className = 'status' + (bad ? ' bad' : ''); }
+
+let device = null, writeChar = null;
+
+log('Page loaded. UA: ' + navigator.userAgent);
+if (!navigator.bluetooth) {
+  $('unsupported').hidden = false;
+  $('connectBtn').disabled = true;
+  log('navigator.bluetooth missing. secureContext=' + window.isSecureContext);
+}
+
+$('connectBtn').onclick = async () => {
+  try {
+    setStatus('Choose the printer from the list… · เลือกเครื่องพิมพ์');
+    device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: KNOWN_SERVICES });
+    log('Picked: ' + (device.name || '(no name)') + ' id=' + device.id);
+    device.addEventListener('gattserverdisconnected', () => { setStatus('Disconnected · ขาดการเชื่อมต่อ', true); writeChar = null; toggle(false); log('Disconnected'); });
+    setStatus('Connecting… · กำลังเชื่อมต่อ');
+    const server = await device.gatt.connect();
+    log('GATT connected');
+    const services = await server.getPrimaryServices();
+    log('Services found: ' + services.map(s => s.uuid).join(', '));
+    let fallback = null;
+    for (const s of services) {
+      let chars = [];
+      try { chars = await s.getCharacteristics(); } catch (e) { log('  ' + s.uuid + ' chars error: ' + e.message); continue; }
+      for (const c of chars) {
+        const p = c.properties;
+        log('  ' + s.uuid + ' / ' + c.uuid + ' write=' + p.write + ' wnr=' + p.writeWithoutResponse);
+        if (p.writeWithoutResponse && !writeChar) writeChar = c;
+        if (p.write && !fallback) fallback = c;
+      }
+    }
+    if (!writeChar) writeChar = fallback;
+    if (!writeChar) throw new Error('No writable channel found on this device. Is this the printer?');
+    log('Using: ' + writeChar.service.uuid + ' / ' + writeChar.uuid);
+    setStatus('Connected to ' + (device.name || 'printer') + ' ✓ · เชื่อมต่อแล้ว');
+    toggle(true);
+  } catch (e) {
+    log('Connect error: ' + e.name + ': ' + e.message);
+    setStatus(e.name === 'NotFoundError' ? 'No printer chosen. Try again. · ลองอีกครั้ง' : 'Could not connect: ' + e.message, true);
+  }
+};
+
+function toggle(on) { $('printBtn').disabled = !on; $('textBtn').disabled = !on; }
+
+async function send(str) {
+  const bytes = new TextEncoder().encode(str);
+  const CHUNK = 20;
+  log('Sending ' + bytes.length + ' bytes…');
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    const part = bytes.slice(i, i + CHUNK);
+    if (writeChar.properties.writeWithoutResponse) {
+      await writeChar.writeValueWithoutResponse(part);
+      await new Promise(r => setTimeout(r, 15));
+    } else {
+      await writeChar.writeValue(part);
+    }
+  }
+  log('Sent.');
+}
+
+function header() {
+  const w = +$('w').value || 100, h = +$('h').value || 100, g = +$('gap').value || 0;
+  return { w, h, cmd: `SIZE ${w} mm,${h} mm\r\nGAP ${g} mm,0 mm\r\nDIRECTION 1\r\nDENSITY 10\r\nSPEED 4\r\nCLS\r\n` };
+}
+const clean = s => s.replace(/"/g, "'");
+
+$('printBtn').onclick = async () => {
+  try {
+    const { w, h, cmd } = header();
+    const dotsW = w * 8, dotsH = h * 8;                 // 203 dpi ≈ 8 dots per mm
+    const text = clean($('qrText').value || 'TEST');
+    const cell = Math.max(4, Math.min(12, Math.floor(Math.min(dotsW, dotsH) * 0.6 / 33)));
+    const qrSize = cell * 33;                            // rough size for a short QR
+    const x = Math.max(10, Math.round((dotsW - qrSize) / 2));
+    const y = Math.max(10, Math.round(dotsH * 0.08));
+    const textY = Math.min(dotsH - 60, y + qrSize + 20);
+    const tspl = cmd +
+      `QRCODE ${x},${y},M,${cell},A,0,"${text}"\r\n` +
+      `TEXT ${Math.max(10, x)},${textY},"3",0,1,1,"${text}"\r\n` +
+      `PRINT 1,1\r\n`;
+    log(tspl);
+    setStatus('Printing… · กำลังพิมพ์');
+    await send(tspl);
+    setStatus('Sent to printer ✓ — did a label come out? · ฉลากออกมาไหม?');
+  } catch (e) { log('Print error: ' + e.message); setStatus('Print failed: ' + e.message, true); }
+};
+
+$('textBtn').onclick = async () => {
+  try {
+    const { cmd } = header();
+    const tspl = cmd + `TEXT 40,40,"3",0,2,2,"HELLO FARM"\r\nTEXT 40,140,"3",0,1,1,"${clean($('qrText').value || 'TEST')}"\r\nPRINT 1,1\r\n`;
+    log(tspl);
+    await send(tspl);
+    setStatus('Sent text test ✓ · ส่งแล้ว');
+  } catch (e) { log('Print error: ' + e.message); setStatus('Print failed: ' + e.message, true); }
+};
+</script>
+</body>
+</html>
