@@ -8,60 +8,100 @@
   :root { --bg:#f6f5f1; --card:#fff; --ink:#1d1d1b; --muted:#6b6a65; --accent:#2f6b3a; --bad:#a3332b; --warn:#9a6a00; --line:#e3e1da; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
-  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 40px; }
-  h1 { font-size: 24px; margin: 4px 0 2px; }
-  .sub { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
-  .card { background: var(--card); border:1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
-  button { width:100%; font-size: 20px; font-weight: 600; padding: 18px; border-radius: 12px; border: none; background: var(--accent); color:#fff; cursor:pointer; }
-  button.secondary { background:#fff; color: var(--ink); border:1px solid var(--line); font-size: 15px; padding: 12px; }
+  main { max-width: 680px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 22px; margin: 2px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  button { width:100%; font-size: 20px; font-weight: 700; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color:#fff; cursor:pointer; }
+  button.stop { background: var(--bad); }
+  button.secondary { background:#fff; color: var(--ink); border:1px solid var(--line); font-size: 15px; font-weight:600; padding: 11px; }
+  button.small { width:auto; font-size: 14px; font-weight:600; padding: 8px 12px; border-radius: 9px; }
+  button.danger { background:#fff; color: var(--bad); border:1px solid #e3b9b4; }
   button:disabled { opacity: .4; cursor: default; }
-  .big { font-size: 26px; font-weight: 700; padding: 18px; border-radius: 12px; text-align:center; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  .pill { font-size: 17px; font-weight: 700; padding: 10px 12px; border-radius: 10px; text-align:center; }
   .ok { background:#e5f0e6; color: var(--accent); }
   .bad { background:#f7e9e7; color: var(--bad); }
   .warn { background:#fbf1dc; color: var(--warn); }
   .muted { color: var(--muted); font-size: 14px; }
-  .job { display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:16px; }
+  .now { text-align:center; }
+  .now .label { font-size: 15px; color: var(--muted); margin-bottom: 4px; }
+  .now .strain { font-size: 30px; font-weight: 800; line-height:1.15; }
+  .now .count { font-size: 44px; font-weight: 800; margin: 6px 0 2px; }
+  .bar { height: 14px; background: #eceae4; border-radius: 7px; overflow: hidden; margin: 8px 0 12px; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .job { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
   .job:last-child { border-bottom:0; }
+  .job .what { flex:1; min-width:0; }
+  .job .what b { font-size: 17px; }
+  .job .n { font-size: 20px; font-weight: 800; white-space: nowrap; }
+  .job .btns { display:flex; flex-direction:column; gap:6px; }
+  .dup { display:inline-block; margin-top:4px; font-size:13px; font-weight:700; background:#fbf1dc; color:var(--warn); padding:3px 8px; border-radius:6px; }
   pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background:#1d1d1b; color:#d9f2d0; padding: 12px; border-radius: 10px; max-height: 260px; overflow:auto; margin: 10px 0 0; }
   details summary { cursor:pointer; font-weight:600; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Print station</h1>
-  <p class="sub">จุดพิมพ์สติกเกอร์ · Xprinter XP-420B · 70 × 50 mm</p>
+  <h1>Print station · จุดพิมพ์สติกเกอร์</h1>
+  <p class="sub">Xprinter XP-420B · 70 × 50 mm · <span id="ver">v2</span></p>
 
   <div class="card" id="setupCard" hidden>
-    <div class="big warn">Not set up yet · ยังไม่ได้ตั้งค่า</div>
-    <p>On a phone, open the tracking app with the <b>owner PIN</b> → tap <b>Print station setup</b> at the bottom → scan that code with this tablet.</p>
-    <p class="muted">เปิดแอปด้วย PIN เจ้าของ → กด Print station setup ด้านล่าง → สแกนโค้ดด้วยแท็บเล็ตนี้</p>
+    <div class="pill warn">Not set up yet · ยังไม่ได้ตั้งค่า</div>
+    <p>Open this page with the setup link (it has <b>#u=…&amp;k=…</b> at the end) once. The tablet remembers it.</p>
   </div>
 
   <div class="card" id="unsupported" hidden>
-    <div class="big bad">Open this page in Chrome · เปิดหน้านี้ใน Chrome</div>
+    <div class="pill bad">Open this page in Chrome · เปิดหน้านี้ใน Chrome</div>
   </div>
 
-  <div class="card" id="mainCard" hidden>
-    <div class="big bad" id="state">Printer not connected · ยังไม่เชื่อมต่อเครื่องพิมพ์</div>
-    <div style="height:12px"></div>
+  <!-- Printer connection -->
+  <div class="card" id="printerCard" hidden>
+    <div class="pill bad" id="conn">Printer not connected · ยังไม่เชื่อมต่อเครื่องพิมพ์</div>
+    <div style="height:10px"></div>
     <button id="connectBtn">Connect printer · เชื่อมต่อเครื่องพิมพ์</button>
-    <p class="muted">Printer on, lid closed. Pick the printer from the list. You only tap this after the tablet restarts or the page reloads.<br>
-    เปิดเครื่องพิมพ์ ปิดฝา แล้วเลือกเครื่องพิมพ์จากรายการ กดแค่ตอนเปิดหน้านี้ใหม่</p>
+    <button id="disconnectBtn" class="secondary" hidden>Disconnect printer · ตัดการเชื่อมต่อ</button>
   </div>
 
+  <!-- Start / stop and what is printing now -->
+  <div class="card" id="nowCard" hidden>
+    <div class="pill warn" id="runState">Paused · หยุดอยู่</div>
+    <div class="now" id="nowBox" hidden>
+      <div style="height:10px"></div>
+      <div class="label">Now printing · กำลังพิมพ์</div>
+      <div class="strain" id="nowStrain"></div>
+      <div class="muted" id="nowId"></div>
+      <div class="count" id="nowCount"></div>
+      <div class="bar"><div id="nowBar"></div></div>
+    </div>
+    <div style="height:10px"></div>
+    <button id="startBtn" disabled>▶ Start printing · เริ่มพิมพ์</button>
+    <button id="stopBtn" class="stop" hidden>■ Stop · หยุด</button>
+    <p class="muted" id="runHelp">Nothing prints until you tap Start. After Stop, Start carries on from the next sticker.<br>
+    จะไม่พิมพ์จนกว่าจะกด เริ่มพิมพ์ · หลังกดหยุด กดเริ่มพิมพ์จะพิมพ์ต่อจากแผ่นถัดไป</p>
+  </div>
+
+  <!-- Waiting list -->
   <div class="card" id="queueCard" hidden>
-    <b>Waiting to print · รอพิมพ์</b> <span class="muted" id="checked"></span>
+    <div class="row" style="align-items:center">
+      <div><b>Waiting to print · รอพิมพ์</b> <span class="muted" id="checked"></span></div>
+      <div style="flex:0"><button class="small danger" id="clearBtn" disabled>Clear all · ล้างทั้งหมด</button></div>
+    </div>
     <div id="queue"><p class="muted">Nothing waiting · ไม่มีงานรอ</p></div>
   </div>
 
   <div class="card" id="doneCard" hidden>
-    <b>Printed just now · พิมพ์แล้ว</b>
+    <b>Finished just now · เสร็จแล้ว</b>
     <div id="done"><p class="muted">—</p></div>
   </div>
 
   <div class="card" id="toolsCard" hidden>
     <button class="secondary" id="testBtn" disabled>Print one test sticker · พิมพ์ทดสอบ 1 แผ่น</button>
-    <div style="height:10px"></div>
+    <div style="height:8px"></div>
+    <button class="secondary" id="calBtn" disabled>Calibrate labels · ปรับเทียบสติกเกอร์</button>
+    <p class="muted">Blank stickers between printed ones? Tap Calibrate once. The printer feeds a few stickers to measure them.<br>
+    มีสติกเกอร์เปล่าแทรก? กด ปรับเทียบ หนึ่งครั้ง เครื่องจะเลื่อนสติกเกอร์ 2–3 แผ่นเพื่อวัดขนาด</p>
     <details>
       <summary>Details for Claude (if something goes wrong)</summary>
       <p class="muted">Screenshot this box and send it to Claude.</p>
@@ -73,7 +113,7 @@
 </main>
 
 <script>
-// ---------- Settings (kept on this tablet only, never in the page code) ----------
+// ===================== Settings =====================
 const KNOWN_SERVICES = [
   '49535343-fe7d-4ae5-8fa9-9fafd205e455', '000018f0-0000-1000-8000-00805f9b34fb',
   '0000ff00-0000-1000-8000-00805f9b34fb', '0000ffe0-0000-1000-8000-00805f9b34fb',
@@ -81,15 +121,17 @@ const KNOWN_SERVICES = [
   '0000ff12-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
   '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 ];
-const POLL_MS = 5000;
+const POLL_MS = 5000;          // how often the waiting list is checked
+const KEEPALIVE_MS = 15000;    // a tiny "still here" message so the printer doesn't drop the link
 const LABEL = { w: 70, h: 50, gap: 2 };   // mm. 203 dpi = 8 dots per mm
+const AFTER_STICKER_MS = 1100; // wait after each sticker so the printer is done before the next one
 
 const $ = id => document.getElementById(id);
 function log(msg) { const el = $('log'); el.textContent += new Date().toLocaleTimeString() + ' ' + msg + '\n'; el.scrollTop = el.scrollHeight; console.log(msg); }
-function setState(text, cls) { $('state').textContent = text; $('state').className = 'big ' + cls; }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+function storeJson(k, v) { if (v === undefined) { try { return JSON.parse(store(k) || '{}'); } catch (e) { return {}; } } store(k, JSON.stringify(v)); }
 
 // The setup link looks like station.html#u=<app link>&k=<key>. Save it, then hide it from the address bar.
 (function readSetupLink() {
@@ -100,10 +142,79 @@ function store(k, v) { try { if (v === undefined) return localStorage.getItem(k)
 })();
 const APP_URL = store('station_url'), KEY = store('station_key');
 
-// ---------- Bluetooth ----------
-let device = null, writeChar = null, busy = false;
-const printedHere = {};   // jobs this tablet already printed (so a failed "done" never prints twice)
+// ===================== State =====================
+let device = null, writeChar = null, chunk = 20;
+let wantConnected = false;       // false after "Disconnect printer": no automatic reconnecting
+let running = false;             // Start / Stop. Always Stopped when the page opens.
+let printing = null;             // { job, label, k, n } while a job is being printed
+let jobs = [];                   // waiting list from the Sheet
+let sending = false;             // one Bluetooth message at a time
+const cancelAsked = {};          // job -> true: stop this job after the current sticker
+// Saved on the tablet, so a reload or a dropped printer never starts a job again from sticker 1:
+let progress = storeJson('station_progress');   // job -> stickers already printed
+let allowed = storeJson('station_allowed');     // job -> true: "Print anyway" tapped on a possible duplicate
+let finished = storeJson('station_finished');   // job -> 'done' | 'cancel' waiting to be reported to the Sheet
+function saveState() { storeJson('station_progress', progress); storeJson('station_allowed', allowed); storeJson('station_finished', finished); }
 
+// ===================== Screen =====================
+function render() {
+  const connected = !!writeChar;
+  $('connectBtn').hidden = connected;
+  $('disconnectBtn').hidden = !connected && !wantConnected;
+  $('testBtn').disabled = !connected || !!printing;
+  $('calBtn').disabled = !connected || !!printing;
+  $('startBtn').hidden = running;
+  $('stopBtn').hidden = !running;
+  $('startBtn').disabled = !connected;
+
+  const rs = $('runState');
+  if (!connected) { rs.textContent = running ? 'Waiting for printer… · รอเครื่องพิมพ์' : 'Paused · หยุดอยู่'; rs.className = 'pill ' + (running ? 'bad' : 'warn'); }
+  else if (running) { rs.textContent = printing ? 'Printing · กำลังพิมพ์' : 'Running – new stickers print by themselves · กำลังทำงาน'; rs.className = 'pill ok'; }
+  else { rs.textContent = printing ? 'Stopping after this sticker… · จะหยุดหลังแผ่นนี้' : 'Paused – tap Start · หยุดอยู่ กด เริ่มพิมพ์'; rs.className = 'pill warn'; }
+
+  const shown = printing || pausedJob();
+  $('nowBox').hidden = !shown;
+  if (shown) {
+    const L = shown.label, n = Number(L.n) || 1, k = printing ? printing.k : (progress[shown.job] || 0);
+    $('nowBox').querySelector('.label').textContent = printing ? 'Now printing · กำลังพิมพ์' : 'Stopped part-way · หยุดกลางคัน';
+    $('nowStrain').textContent = (L.name || L.code || '') + (L.name && L.code ? ' · ' + L.code : '');
+    $('nowId').textContent = L.id || '';
+    $('nowCount').textContent = k + ' / ' + n;
+    $('nowBar').style.width = Math.round(k / n * 100) + '%';
+  }
+
+  $('clearBtn').disabled = !jobs.length;
+  $('queue').innerHTML = jobs.length ? jobs.map(j => {
+    const L = j.label, n = Number(L.n) || 1, done = progress[j.job] || 0;
+    const isNow = printing && printing.job === j.job;
+    const held = isDupHeld(j);
+    return `<div class="job">
+      <div class="what"><b>${esc(L.name || L.code)}</b> <span class="muted">${esc(L.code)}</span><br>
+        <span class="muted">${esc(L.id)} · ${esc(j.by || '')} · ${esc(String(j.time).slice(11))}</span>
+        ${done ? `<br><span class="muted">Printed ${done} of ${n} · พิมพ์แล้ว ${done} จาก ${n}</span>` : ''}
+        ${isNow ? '<br><span class="dup" style="background:#e5f0e6;color:#2f6b3a">Printing now · กำลังพิมพ์</span>' : ''}
+        ${held ? '<br><span class="dup">⚠ Sent twice? Same batch sent ' + esc(dupWhen(j)) + ' · ส่งซ้ำ?</span>' : ''}
+      </div>
+      <div class="n">${n - done}×</div>
+      <div class="btns">
+        ${held ? `<button class="small" onclick="allowJob('${esc(j.job)}')">Print anyway · ยืนยันพิมพ์</button>` : ''}
+        <button class="small danger" onclick="cancelJob('${esc(j.job)}')">${cancelAsked[j.job] ? 'Cancelling… · กำลังยกเลิก' : 'Cancel · ยกเลิก'}</button>
+      </div>
+    </div>`;
+  }).join('') : '<p class="muted">Nothing waiting · ไม่มีงานรอ</p>';
+}
+function setConn(text, cls) { $('conn').textContent = text; $('conn').className = 'pill ' + cls; }
+function pausedJob() { return jobs.filter(j => progress[j.job] > 0)[0] || null; }
+function isDupHeld(j) { return j.dup && !allowed[j.job]; }
+function dupWhen(j) { const d = jobs.filter(x => x.job === j.dup)[0]; return d ? 'at ' + String(d.time).slice(11) + ' (still waiting)' : 'less than 30 min ago'; }
+function addDone(L, text) {
+  const el = $('done');
+  if (el.textContent.trim() === '—') el.innerHTML = '';
+  el.insertAdjacentHTML('afterbegin', `<div class="job"><div class="what"><b>${esc(L.name || L.code)}</b> <span class="muted">${esc(L.id)}</span><br><span class="muted">${new Date().toLocaleTimeString()} · ${esc(text)}</span></div></div>`);
+  while (el.children.length > 10) el.removeChild(el.lastChild);
+}
+
+// ===================== Bluetooth =====================
 async function connectTo(dev) {
   const server = await dev.gatt.connect();
   const services = await server.getPrimaryServices();
@@ -112,59 +223,122 @@ async function connectTo(dev) {
     let chars = [];
     try { chars = await s.getCharacteristics(); } catch (e) { continue; }
     for (const c of chars) {
-      if (c.properties.writeWithoutResponse && !wnr) wnr = c;
       if (c.properties.write && !w) w = c;
+      if (c.properties.writeWithoutResponse && !wnr) wnr = c;
     }
   }
-  writeChar = wnr || w;
+  // Prefer "write with reply": the tablet waits for the printer to say "got it" before sending more,
+  // so nothing gets lost (lost data = blank or half stickers).
+  writeChar = w || wnr;
   if (!writeChar) throw new Error('No writable channel found. Is this the printer?');
-  log('Connected: ' + (dev.name || 'printer') + ' via ' + writeChar.uuid);
-  setState('Ready ✓ · พร้อมพิมพ์', 'ok');
-  $('testBtn').disabled = false;
+  chunk = 20;
+  try { await rawWrite(new TextEncoder().encode('\r\n'.repeat(50))); chunk = 100; } catch (e) { chunk = 20; }
+  log('Connected: ' + (dev.name || 'printer') + ' · ' + (writeChar.properties.write ? 'with reply' : 'no reply') + ' · chunk ' + chunk);
+  store('printer_id', dev.id);
+  setConn('Printer connected ✓ · เชื่อมต่อแล้ว', 'ok');
+  render();
+}
+
+async function rawWrite(part) {
+  if (writeChar.properties.write) {
+    if (writeChar.writeValueWithResponse) await writeChar.writeValueWithResponse(part);
+    else await writeChar.writeValue(part);
+  } else {
+    await writeChar.writeValueWithoutResponse(part);
+    await sleep(25);
+  }
+}
+
+async function send(str) {
+  while (sending) await sleep(50);
+  sending = true;
+  try {
+    const bytes = new TextEncoder().encode(str);
+    for (let i = 0; i < bytes.length; i += chunk) {
+      if (!writeChar) throw new Error('Printer disconnected');
+      await rawWrite(bytes.slice(i, i + chunk));
+    }
+  } finally { sending = false; }
 }
 
 $('connectBtn').onclick = async () => {
   try {
-    device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: KNOWN_SERVICES });
-    device.addEventListener('gattserverdisconnected', onDisconnect);
-    setState('Connecting… · กำลังเชื่อมต่อ', 'warn');
-    await connectTo(device);
+    const dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: KNOWN_SERVICES });
+    useDevice(dev);
+    setConn('Connecting… · กำลังเชื่อมต่อ', 'warn');
+    await connectTo(dev);
   } catch (e) {
     log('Connect error: ' + e.name + ': ' + e.message);
-    setState(e.name === 'NotFoundError' ? 'No printer chosen · ยังไม่ได้เลือกเครื่องพิมพ์' : 'Could not connect · เชื่อมต่อไม่ได้', 'bad');
+    setConn(e.name === 'NotFoundError' ? 'No printer chosen · ยังไม่ได้เลือกเครื่องพิมพ์' : 'Could not connect – try again · เชื่อมต่อไม่ได้ ลองใหม่', 'bad');
   }
 };
 
-// If the printer drops (turned off, out of range), keep trying to reconnect on its own.
-async function onDisconnect() {
+$('disconnectBtn').onclick = () => {
+  wantConnected = false;
+  running = false;
+  try { if (device && device.gatt.connected) device.gatt.disconnect(); } catch (e) {}
   writeChar = null;
-  $('testBtn').disabled = true;
-  setState('Printer disconnected – reconnecting… · ขาดการเชื่อมต่อ กำลังเชื่อมใหม่', 'bad');
-  log('Disconnected');
-  for (let i = 0; i < 60 && device && !writeChar; i++) {
-    await new Promise(r => setTimeout(r, 5000));
-    try { await connectTo(device); } catch (e) { log('Reconnect try ' + (i + 1) + ' failed'); }
-  }
-  if (!writeChar) setState('Printer not connected – tap Connect · ยังไม่เชื่อมต่อ กดเชื่อมต่อ', 'bad');
+  setConn('Printer disconnected · ตัดการเชื่อมต่อแล้ว', 'warn');
+  log('Disconnected by hand');
+  render();
+};
+
+function useDevice(dev) {
+  if (device && device !== dev) device.removeEventListener('gattserverdisconnected', onDrop);
+  device = dev;
+  wantConnected = true;
+  dev.addEventListener('gattserverdisconnected', onDrop);
 }
 
-async function send(str) {
-  const bytes = new TextEncoder().encode(str);
-  const CHUNK = 20;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    const part = bytes.slice(i, i + CHUNK);
-    if (writeChar.properties.writeWithoutResponse) {
-      await writeChar.writeValueWithoutResponse(part);
-      await new Promise(r => setTimeout(r, 15));
-    } else {
-      await writeChar.writeValue(part);
+// The printer dropped (turned off, out of range, went to sleep): keep trying on our own, for as long as this page is open.
+let reconnecting = false;
+async function onDrop() {
+  writeChar = null;
+  render();
+  if (!wantConnected || reconnecting) return;
+  reconnecting = true;
+  log('Printer dropped' + (printing ? ' during ' + printing.job + ' at ' + printing.k + '/' + printing.n : ''));
+  for (let i = 1; wantConnected && !writeChar; i++) {
+    setConn('Printer dropped – reconnecting (try ' + i + ') · ขาดการเชื่อมต่อ กำลังเชื่อมใหม่', 'bad');
+    await sleep(Math.min(2000 * i, 10000));
+    try { await connectTo(device); } catch (e) { log('Reconnect try ' + i + ' failed: ' + e.message); }
+  }
+  reconnecting = false;
+}
+
+// After a reload, reconnect to the printer this tablet used before, without a tap (newer Chrome only).
+async function reconnectRemembered() {
+  if (!navigator.bluetooth.getDevices) return;
+  try {
+    const list = await navigator.bluetooth.getDevices();
+    const id = store('printer_id');
+    const dev = list.filter(d => d.id === id)[0] || (list.length === 1 ? list[0] : null);
+    if (!dev) return;
+    useDevice(dev);
+    setConn('Reconnecting to ' + (dev.name || 'printer') + '… · กำลังเชื่อมต่อ', 'warn');
+    if (dev.watchAdvertisements) {
+      const ac = new AbortController();
+      const seen = new Promise(res => dev.addEventListener('advertisementreceived', res, { once: true }));
+      try { await dev.watchAdvertisements({ signal: ac.signal }); await Promise.race([seen, sleep(8000)]); } catch (e) {}
+      ac.abort();
     }
+    await connectTo(dev);
+  } catch (e) {
+    log('Auto reconnect failed: ' + e.message);
+    wantConnected = false;
+    setConn('Printer not connected – tap Connect · ยังไม่เชื่อมต่อ กดเชื่อมต่อ', 'bad');
+    render();
   }
 }
 
-// ---------- Sticker layout (TSPL) ----------
-// Left: QR code (opens the tracking app for this group) with the full ID under it.
-// Right: strain code, rest of the ID, strain name, Plant 3/6, date.
+// Keep the link busy with a harmless empty line, so the printer and tablet don't drop it when idle.
+setInterval(async () => {
+  if (!writeChar || printing || sending) return;
+  try { await send('\r\n'); } catch (e) { log('Keep-alive failed: ' + e.message); }
+}, KEEPALIVE_MS);
+
+// ===================== Sticker layout (TSPL) =====================
+// Left: QR code with the full ID under it. Right: strain code, rest of the ID, strain name, Plant 3/6, date.
 const ascii = s => String(s == null ? '' : s).replace(/"/g, "'").replace(/[^\x20-\x7E]/g, '').trim();
 function fit(s, n) { s = ascii(s); return s.length > n ? s.slice(0, n - 1) + '.' : s; }
 
@@ -173,9 +347,11 @@ function stickerTspl(L, k) {
   const rest = id.indexOf(code + '-') === 0 ? id.slice(code.length + 1) : id;
   const n = Number(L.n) || 1;
   const line4 = n > 1 ? (L.unit || 'Plant') + ' ' + k + '/' + n : fit(L.extra, 15);
-  const X = 372; // right column starts here (dots)
+  const X = 372;
   const codeFont = code.length <= 7 ? '"4"' : code.length <= 11 ? '"3"' : '"2"';
-  return `SIZE ${LABEL.w} mm,${LABEL.h} mm\r\nGAP ${LABEL.gap} mm,0 mm\r\nDIRECTION 1\r\nREFERENCE 0,0\r\nDENSITY 10\r\nSPEED 4\r\nCLS\r\n` +
+  // After Calibrate, the printer knows the real gap, so we don't force our own gap number on it.
+  const gap = store('calibrated') ? '' : `GAP ${LABEL.gap} mm,0 mm\r\n`;
+  return `SIZE ${LABEL.w} mm,${LABEL.h} mm\r\n${gap}DIRECTION 1\r\nREFERENCE 0,0\r\nDENSITY 10\r\nSPEED 3\r\nCLS\r\n` +
     `QRCODE 16,16,M,6,A,0,"${ascii(L.qr)}"\r\n` +
     `TEXT 16,372,"1",0,1,1,"${fit(id, 42)}"\r\n` +
     `TEXT ${X},24,${codeFont},0,1,1,"${fit(code, 15)}"\r\n` +
@@ -186,26 +362,53 @@ function stickerTspl(L, k) {
     `PRINT 1,1\r\n`;
 }
 
-async function printLabel(L) {
-  const n = Math.min(200, Math.max(1, Number(L.n) || 1));
-  for (let k = 1; k <= n; k++) {
-    if (!writeChar) throw new Error('Printer disconnected');
-    await send(stickerTspl(L, k));
-    await new Promise(r => setTimeout(r, 600)); // let the printer finish each sticker
-  }
-}
-
 $('testBtn').onclick = async () => {
-  if (busy) return;
-  busy = true;
+  if (printing) return;
   try {
-    await printLabel({ qr: 'TEST', id: 'TEST-000000-1', code: 'TEST', name: 'TEST STICKER', unit: 'Plant', n: 1, extra: 'test', date: new Date().toISOString().slice(0, 10) });
+    await send(stickerTspl({ qr: 'TEST', id: 'TEST-000000-1', code: 'TEST', name: 'TEST STICKER', unit: 'Plant', n: 1, extra: 'test', date: new Date().toISOString().slice(0, 10) }, 1));
     log('Test sticker sent');
   } catch (e) { log('Test failed: ' + e.message); }
-  busy = false;
 };
 
-// ---------- Queue ----------
+$('calBtn').onclick = async () => {
+  if (printing) return;
+  try {
+    await send(`SIZE ${LABEL.w} mm,${LABEL.h} mm\r\nGAPDETECT\r\n`);
+    store('calibrated', '1');
+    log('Calibrate sent (GAPDETECT). Gap is now set by the printer.');
+    addDone({ name: 'Calibrate', id: '' }, 'Printer measured the stickers · วัดสติกเกอร์แล้ว');
+  } catch (e) { log('Calibrate failed: ' + e.message); }
+};
+
+// ===================== Start / Stop =====================
+$('startBtn').onclick = () => { running = true; log('Start'); render(); kick(); };
+$('stopBtn').onclick = () => { running = false; log('Stop'); render(); };
+
+window.allowJob = job => { allowed[job] = true; saveState(); log('Print anyway: ' + job); render(); kick(); };
+window.cancelJob = async job => {
+  if (printing && printing.job === job) { cancelAsked[job] = true; render(); return; } // stops after the current sticker
+  await finishJob(job, 'cancel');
+};
+let clearArmed = 0;
+$('clearBtn').onclick = async () => {
+  if (Date.now() - clearArmed > 4000) {
+    clearArmed = Date.now();
+    $('clearBtn').textContent = 'Tap again to clear all · กดอีกครั้ง';
+    setTimeout(() => { $('clearBtn').textContent = 'Clear all · ล้างทั้งหมด'; }, 4000);
+    return;
+  }
+  clearArmed = 0;
+  $('clearBtn').textContent = 'Clear all · ล้างทั้งหมด';
+  log('Clear all');
+  running = false;
+  for (const j of jobs.slice()) {
+    if (printing && printing.job === j.job) cancelAsked[j.job] = true;
+    else await finishJob(j.job, 'cancel');
+  }
+  render();
+};
+
+// ===================== Queue =====================
 async function api(params) {
   const q = new URLSearchParams(Object.assign({ api: 'print', k: KEY }, params));
   const res = await fetch(APP_URL + '?' + q.toString(), { redirect: 'follow' });
@@ -214,43 +417,75 @@ async function api(params) {
   return data;
 }
 
-function showQueue(jobs) {
-  $('checked').textContent = '· checked ' + new Date().toLocaleTimeString();
-  $('queue').innerHTML = jobs.length ? jobs.map(j =>
-    `<div class="job"><span><b>${esc(j.label.id)}</b><br><span class="muted">${esc(j.by || '')} · ${esc(j.time)}</span></span><b>${esc(j.label.n)} ×</b></div>`
-  ).join('') : '<p class="muted">Nothing waiting · ไม่มีงานรอ</p>';
+// Tell the Sheet a job is finished ('done' = all printed, 'cancel' = stopped, with how many came out).
+// Saved on the tablet first, so it is never printed again even if the internet is down right now.
+async function finishJob(job, how) {
+  const j = jobs.filter(x => x.job === job)[0];
+  finished[job] = how;
+  saveState();
+  jobs = jobs.filter(x => x.job !== job);
+  if (j) addDone(j.label, how === 'done' ? 'Printed ' + (j.label.n || 1) + ' · พิมพ์แล้ว' : 'Cancelled after ' + (progress[job] || 0) + ' · ยกเลิกแล้ว');
+  render();
+  await reportFinished();
 }
-function addDone(j) {
-  const el = $('done');
-  if (el.textContent.trim() === '—') el.innerHTML = '';
-  el.insertAdjacentHTML('afterbegin', `<div class="job"><span><b>${esc(j.label.id)}</b><br><span class="muted">${new Date().toLocaleTimeString()}</span></span><b>${esc(j.label.n)} ×</b></div>`);
-  while (el.children.length > 10) el.removeChild(el.lastChild);
+async function reportFinished() {
+  for (const job of Object.keys(finished)) {
+    try {
+      const how = finished[job];
+      const res = await api(how === 'done' ? { do: 'done', job: job } : { do: 'cancel', job: job, printed: progress[job] || 0 });
+      if (how === 'cancel' && res.jobs) throw new Error('UNKNOWN_ACTION'); // older app answers a cancel with the job list
+      delete finished[job]; delete progress[job]; delete allowed[job]; delete cancelAsked[job];
+      saveState();
+    } catch (e) {
+      log('Could not tell the Sheet about ' + job + ': ' + e.message);
+      if (e.message === 'UNKNOWN_ACTION') { log('The app needs the 5.6 Print.gs update for Cancel to work.'); }
+    }
+  }
 }
 
 async function poll() {
-  if (busy) return;
-  busy = true;
   try {
+    await reportFinished();
     const data = await api({ do: 'jobs' });
-    showQueue(data.jobs);
-    for (const j of data.jobs) {
-      if (!printedHere[j.job]) {
-        if (!writeChar) break;                  // wait until the printer is connected
-        setState('Printing ' + j.label.id + '… · กำลังพิมพ์', 'warn');
-        log('Printing ' + j.job + ' (' + j.label.n + ')');
-        await printLabel(j.label);
-        printedHere[j.job] = true;
-        addDone(j);
-      }
-      await api({ do: 'done', job: j.job });    // tell the Sheet it's printed
-    }
-    if (writeChar) setState('Ready ✓ · พร้อมพิมพ์', 'ok');
+    jobs = data.jobs.filter(j => !finished[j.job]);
+    $('checked').textContent = '· checked ' + new Date().toLocaleTimeString();
+    render();
+    kick();
   } catch (e) {
     log('Queue error: ' + e.message);
-    if (e.message === 'BAD_KEY') { setState('Setup link is old – set up again · ลิงก์หมดอายุ ตั้งค่าใหม่', 'bad'); }
-    else if (writeChar) setState('Ready – no internet right now · ยังไม่มีอินเทอร์เน็ต', 'warn');
+    $('checked').textContent = '· no internet right now · ไม่มีอินเทอร์เน็ต';
+    if (e.message === 'BAD_KEY') setConn('Setup link is old – set up again · ลิงก์หมดอายุ ตั้งค่าใหม่', 'bad');
   }
-  busy = false;
+}
+
+// Print the next waiting job, one sticker at a time. Checks Stop, Cancel and the printer between every sticker.
+async function kick() {
+  if (printing || !running || !writeChar) return;
+  const j = jobs.filter(x => !isDupHeld(x) && !finished[x.job])[0];
+  if (!j) { render(); return; }
+  const n = Math.min(200, Math.max(1, Number(j.label.n) || 1));
+  printing = { job: j.job, label: j.label, k: progress[j.job] || 0, n: n };
+  log('Printing ' + j.job + ' from ' + (printing.k + 1) + ' of ' + n);
+  render();
+  try {
+    while (printing.k < n) {
+      if (cancelAsked[j.job] || !running || !writeChar) break;
+      await send(stickerTspl(j.label, printing.k + 1));
+      printing.k++;
+      progress[j.job] = printing.k;      // saved before the next sticker
+      saveState();
+      render();
+      await sleep(AFTER_STICKER_MS);
+    }
+  } catch (e) {
+    log('Stopped at ' + printing.k + '/' + n + ': ' + e.message);
+  }
+  const p = printing;
+  printing = null;
+  if (p.k >= n) await finishJob(p.job, 'done');
+  else if (cancelAsked[p.job]) await finishJob(p.job, 'cancel');
+  render();
+  if (running && writeChar) setTimeout(kick, 300);
 }
 
 // Keep the tablet screen on so Chrome keeps running.
@@ -258,18 +493,19 @@ async function keepAwake() {
   try { if ('wakeLock' in navigator) { await navigator.wakeLock.request('screen'); log('Screen will stay on'); } } catch (e) { log('Wake lock: ' + e.message); }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+$('forgetBtn').onclick = () => { ['station_url', 'station_key', 'station_progress', 'station_allowed', 'station_finished', 'printer_id', 'calibrated'].forEach(k => store(k, null)); location.reload(); };
 
-$('forgetBtn').onclick = () => { store('station_url', null); store('station_key', null); location.reload(); };
-
-// ---------- Start ----------
-log('Page loaded. ' + navigator.userAgent);
+// ===================== Start-up =====================
+log('Page loaded (v2). ' + navigator.userAgent);
 if (!APP_URL || !KEY) {
   $('setupCard').hidden = false;
 } else if (!navigator.bluetooth) {
   $('unsupported').hidden = false;
 } else {
-  ['mainCard', 'queueCard', 'doneCard', 'toolsCard'].forEach(id => $(id).hidden = false);
+  ['printerCard', 'nowCard', 'queueCard', 'doneCard', 'toolsCard'].forEach(id => $(id).hidden = false);
+  render();
   keepAwake();
+  reconnectRemembered();
   poll();
   setInterval(poll, POLL_MS);
 }
